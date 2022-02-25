@@ -1,278 +1,136 @@
+import datetime
+import logging
 import os
+import sys
+import yaml
 
-from dateutil import utils
+from defaults import CRON_MAP, ES_CONFIG, JASU_CONFIG_DEFAULT, FILENAMES_DICTIONARY_DEAFULT, DATA_SOURCE_DICTIONARY
 
-BUFFER_SIZE = 100000
+DEBUG = os.getenv("DEBUG", 'True').lower() in ('true', '1', 't')
+TEST = os.getenv("TEST_INSTANCE", 'True').lower() in ('true', '1', 't')
+LOG_FORMAT = os.getenv('LOG_FORMAT', '%(asctime)s - %(levelname)s in %(module)s: %(message)s')
+LOG_DATE_FORMAT = os.getenv('LOG_DATE_FORMAT', '%d.%m.%Y %H:%M:%S')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # This is your Project Root
+ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, os.pardir))
+EXPORT_DATA_DIR = os.getenv('EXPORT_DATA_DIR', os.path.join(ROOT_DIR, 'data'))
+CONFIG_DIR = os.getenv('CONFIG_DIR', os.path.join(ROOT_DIR, 'conf'))
+CSV_OUTPUT_DIRECTORY = EXPORT_DATA_DIR
+CONFIG_FILE_NAME = 'opendata.yml'
+CONFIG_TEST_FILE_NAME = 'opendata-test.yml'
+CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, CONFIG_TEST_FILE_NAME)
+if not TEST:
+    CONFIG_FILE_PATH = os.path.join(CONFIG_DIR, CONFIG_FILE_NAME)
 
-FIELD_NAMES_FAKTURA = [
-    'cislo_smlouvy', 'cislo_objednavky', 'dodavatel', 'ico', 'cislo_faktury', 'datum_vystaveni', 'datum_prijeti',
-    'datum_splatnosti', 'datum_uhrady', 'celkova_castka', 'castka_polozky', 'mena', 'ucel_platby', 'polozka_rozpoctu',
-    'nazev_plozky_rozpoctu', 'kapitola', 'nazev_kapitoly'
-]
-
-FIELD_NAMES_OBJEDNAVKA = [
-    'cislo_objednavky', 'popis', 'dodavatel', 'ico', 'datum_objednani', 'datum_dodani', 'celkova_castka', 'mena'
-]
-
-FIELD_NAMES_SMLOUVA = [
-    'cislo_smlouvy', 'predmet', 'dodavatel', 'ico', 'datum_uzavreni', 'datum_trvani', 'celkova_castka', 'mena'
-]
-
-CSV_FILE_SUFFIX = '_' + utils.datetime.now().strftime('%Y-%m-%d') + '.csv'
-CSV_FILE_NAME_TEST = 'test' + CSV_FILE_SUFFIX
-CSV_OUTPUT_DIRECTORY = os.getenv('CSV_OUTPUT_DIRECTORY', '')
-ES_HOST = os.getenv('ES_HOST', 'localhost:9200')
-
-
-# CKAN
-CKAN_ENDPOINT = 'https://opendata.mzp.cz/api/3/action/resource_update'
-CKAN_API_KEY = "0753e953-a26a-4c1a-8805-84b12f655ebf"
-CKAN_OPENDATA_LICENSE = "https://portal.gov.cz/portal/ostatni/volny-pristup-k-ds.html"
-CKAN_SCHEMA_FAKTURA = "https://opendata.mzp.cz/schema/schema_faktura.json	"
-CKAN_SCHEMA_OBJEDNAVKA = "https://opendata.mzp.cz/schema/schema_objednavka.json"
-CKAN_SCHEMA_SMLOUVA = "https://opendata.mzp.cz/schema/schema_smlouva.json"
-CKAN_FORMAT_SCHEMA = "application/json"
-
-# CONSTATNTS
-DATASOURCE_COMPANY_AOPK = 'aopk'
-DATASOURCE_COMPANY_CENIA = 'cenia'
-DATASOURCE_COMPANY_CGS = 'cgs'
-DATASOURCE_COMPANY_CIZP = 'cizp'
-DATASOURCE_COMPANY_MZP = 'mzp'
-DATASOURCE_COMPANY_SJCR = 'sjcr'
-DATASOURCE_COMPANIES = (
-    DATASOURCE_COMPANY_AOPK,
-    DATASOURCE_COMPANY_CENIA,
-    DATASOURCE_COMPANY_CGS,
-    DATASOURCE_COMPANY_CIZP,
-    DATASOURCE_COMPANY_MZP,
-    DATASOURCE_COMPANY_SJCR
-)
-
-DATASOURCE_DOCTYPE_FAKTURA = 'faktura'
-DATASOURCE_DOCTYPE_OBJEDNAVKA = 'objednavka'
-DATASOURCE_DOCTYPE_SMLOUVA = 'smlouva'
-DOCTYPE_DICTIONARY = {
-    DATASOURCE_DOCTYPE_FAKTURA: FIELD_NAMES_FAKTURA,
-    DATASOURCE_DOCTYPE_OBJEDNAVKA: FIELD_NAMES_OBJEDNAVKA,
-    DATASOURCE_DOCTYPE_SMLOUVA: FIELD_NAMES_SMLOUVA
-}
-
-DATASOURCE_INDEX = 'index'
-DATASOURCE_CKAN = 'ckan'
-DATASOURCE_CKAN_SCHEME = 'scheme'
-DATASOURCE_FIELDNAMES = 'fieldnames'
-DATASOURCE_SORTITEM = 'sort'
-DATASOURCE_FILENAME = 'filename'
-
-FILENAME_FAKTURA = 'uhrazene_faktury'
-FILENAME_OBJEDNAVKA = 'objednavky'
-FILENAME_SMLOUVA = 'smlouvy_platne_neplatne'
-FILENAMES = (
-    FILENAME_FAKTURA,
-    FILENAME_OBJEDNAVKA,
-    FILENAME_SMLOUVA
-)
-FILENAMES_DICTIONARY = {
-    FILENAME_FAKTURA: DATASOURCE_DOCTYPE_FAKTURA,
-    FILENAME_OBJEDNAVKA: DATASOURCE_DOCTYPE_OBJEDNAVKA,
-    FILENAME_SMLOUVA: DATASOURCE_DOCTYPE_SMLOUVA
-}
-
-SORTITEM_FAKTURA = "idpolozky"
-SORTITEM_OBJEDNAVKA = "_id"
-SORTITEM_SMLOUVA = "_id"
+CSV_FILE_SUFFIX = '_{}.csv'.format(datetime.datetime.now().strftime('%Y-%m-%d'))
+CSV_FILE_NAME_TEST = 'test{}'.format(CSV_FILE_SUFFIX)
 
 
-DATA_SOURCE_DICTIONARY = {
-    DATASOURCE_COMPANY_AOPK: {
-        DATASOURCE_DOCTYPE_FAKTURA: {
-            DATASOURCE_INDEX: 'muzo-aopk-zavazek',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_FAKTURA,
-            DATASOURCE_SORTITEM: SORTITEM_FAKTURA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_AOPK + '_' + FILENAME_FAKTURA,
-            DATASOURCE_CKAN: {
-                '2019': 'd41c0a4b-00c7-42ea-b610-39265b3e83ef',
-                '2020': 'bfe802e2-9567-46f5-99c5-f231a8500591',
-                'default': 'bfe802e2-9567-46f5-99c5-f231a8500591',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_FAKTURA,
-        },
-        DATASOURCE_DOCTYPE_OBJEDNAVKA: {
-            DATASOURCE_INDEX: 'muzo-aopk-objednavka',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_OBJEDNAVKA,
-            DATASOURCE_SORTITEM: SORTITEM_OBJEDNAVKA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_AOPK + '_' + FILENAME_OBJEDNAVKA,
-            DATASOURCE_CKAN: {
-                '2019': '32d88a90-5dfd-4f56-aee0-2a05d93cf016',
-                '2020': '83fbdb47-f51a-419f-a0f2-4073a790c272',
-                'default': '83fbdb47-f51a-419f-a0f2-4073a790c272',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_OBJEDNAVKA,
-        },
-        DATASOURCE_DOCTYPE_SMLOUVA: {
-            DATASOURCE_INDEX: 'muzo-aopk-smlouva',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_SMLOUVA,
-            DATASOURCE_SORTITEM: SORTITEM_SMLOUVA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_AOPK + '_' + FILENAME_SMLOUVA,
-            DATASOURCE_CKAN: {
-                'default': '14ffd3c8-4569-4e6d-b7c1-abba65b18878',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_SMLOUVA,
-        },
-    },
-    DATASOURCE_COMPANY_CENIA: {
-        DATASOURCE_DOCTYPE_FAKTURA: {
-            DATASOURCE_INDEX: 'muzo-cenia-zavazek',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_FAKTURA,
-            DATASOURCE_SORTITEM: SORTITEM_FAKTURA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_CENIA + '_' + FILENAME_FAKTURA,
-            DATASOURCE_CKAN: {
-                '2019': 'd8901035-c268-46a2-bf2a-80db0ad418c5',
-                '2020': 'e982fbfc-20ce-4730-ada9-bfa053b916d8',
-                'default': 'e982fbfc-20ce-4730-ada9-bfa053b916d8',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_FAKTURA,
-        },
-        DATASOURCE_DOCTYPE_SMLOUVA: {
-            DATASOURCE_INDEX: 'muzo-cenia-smlouva',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_SMLOUVA,
-            DATASOURCE_SORTITEM: SORTITEM_SMLOUVA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_CENIA + '_' + FILENAME_SMLOUVA,
-            DATASOURCE_CKAN: {
-                'default': 'a2497d61-19db-4c3e-a74f-8f8098cb520b',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_SMLOUVA,
-        },
-    },
-    DATASOURCE_COMPANY_CGS: {
-        DATASOURCE_DOCTYPE_FAKTURA: {
-            DATASOURCE_INDEX: 'muzo-cgs-zavazek',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_FAKTURA,
-            DATASOURCE_SORTITEM: SORTITEM_FAKTURA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_CGS + '_' + FILENAME_FAKTURA,
-            DATASOURCE_CKAN: {
-                '2019': 'd32400f9-d43d-4609-98bb-32591d72b1f5',
-                '2020': 'aad9a0ac-0754-48ea-b327-89b73fe58a48',
-                'default': 'aad9a0ac-0754-48ea-b327-89b73fe58a48',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_FAKTURA,
-        },
-        DATASOURCE_DOCTYPE_OBJEDNAVKA: {
-            DATASOURCE_INDEX: 'muzo-cgs-objednavka',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_OBJEDNAVKA,
-            DATASOURCE_SORTITEM: SORTITEM_OBJEDNAVKA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_CGS + '_' + FILENAME_OBJEDNAVKA,
-            DATASOURCE_CKAN: {
-                '2019': '741d6906-8725-4e1e-b9da-d21a668f369d',
-                '2020': '316b77a0-a017-4dd5-909b-a0b393009640',
-                'default': '316b77a0-a017-4dd5-909b-a0b393009640',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_OBJEDNAVKA,
-        },
-        DATASOURCE_DOCTYPE_SMLOUVA: {
-            DATASOURCE_INDEX: 'muzo-cgs-smlouva',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_SMLOUVA,
-            DATASOURCE_SORTITEM: SORTITEM_SMLOUVA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_CGS + '_' + FILENAME_SMLOUVA,
-            DATASOURCE_CKAN: {
-                'default': '96753501-1ed5-4897-aa49-7db6212e3a0a',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_SMLOUVA,
-        },
-    },
-    DATASOURCE_COMPANY_CIZP: {
-        DATASOURCE_DOCTYPE_FAKTURA: {
-            DATASOURCE_INDEX: 'muzo-cizp-zavazek',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_FAKTURA,
-            DATASOURCE_SORTITEM: SORTITEM_FAKTURA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_CIZP + '_' + FILENAME_FAKTURA,
-            DATASOURCE_CKAN: {
-                '2019': 'f2c9006a-315c-4b61-b488-ff3b333ba660',
-                '2020': 'fdc75abd-2f17-4382-9cbe-ef8df6cfed49',
-                'default': 'fdc75abd-2f17-4382-9cbe-ef8df6cfed49',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_FAKTURA,
-        },
-        DATASOURCE_DOCTYPE_OBJEDNAVKA: {
-            DATASOURCE_INDEX: 'muzo-cizp-objednavka',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_OBJEDNAVKA,
-            DATASOURCE_SORTITEM: SORTITEM_OBJEDNAVKA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_CIZP + '_' + FILENAME_OBJEDNAVKA,
-            DATASOURCE_CKAN: {
-                '2019': 'dae00835-8515-4527-ae0f-510a7905a276',
-                '2020': '1caa294d-d810-4f84-93e1-4f0464a3c40a',
-                'default': '1caa294d-d810-4f84-93e1-4f0464a3c40a',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_OBJEDNAVKA,
-        },
-        DATASOURCE_DOCTYPE_SMLOUVA: {
-            DATASOURCE_INDEX: 'muzo-cizp-smlouva',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_SMLOUVA,
-            DATASOURCE_SORTITEM: SORTITEM_SMLOUVA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_CIZP + '_' + FILENAME_SMLOUVA,
-            DATASOURCE_CKAN: {
-                'default': '673cf597-539e-405f-a371-05a5a53858f2',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_SMLOUVA,
-        },
-    },
-    DATASOURCE_COMPANY_MZP: {
-        DATASOURCE_DOCTYPE_FAKTURA: {
-            DATASOURCE_INDEX: 'muzo-mzp-zavazek*',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_FAKTURA,
-            DATASOURCE_SORTITEM: SORTITEM_FAKTURA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_MZP + '_' + FILENAME_FAKTURA,
-            DATASOURCE_CKAN: {
-                '2019': '8221caa9-3df6-4c09-880b-3b18386c330a',
-                '2020': '233ff4c8-2baa-4670-bcc1-ae9a105d3c2e',
-                'default': '233ff4c8-2baa-4670-bcc1-ae9a105d3c2e',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_FAKTURA,
-        },
-        DATASOURCE_DOCTYPE_OBJEDNAVKA: {
-            DATASOURCE_INDEX: 'muzo-mzp-objednavka',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_OBJEDNAVKA,
-            DATASOURCE_SORTITEM: SORTITEM_OBJEDNAVKA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_MZP + '_' + FILENAME_OBJEDNAVKA,
-            DATASOURCE_CKAN: {
-                '2019': '5dab30ac-dba4-4c8c-b9b9-da394133bdad',
-                '2020': '349f2667-e690-4680-8a2d-dd3fff9ba08e',
-                'default': '349f2667-e690-4680-8a2d-dd3fff9ba08e',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_OBJEDNAVKA,
-        },
-        DATASOURCE_DOCTYPE_SMLOUVA: {
-            DATASOURCE_INDEX: 'muzo-mzp-smlouva',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_SMLOUVA,
-            DATASOURCE_SORTITEM: SORTITEM_SMLOUVA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_MZP + '_' + FILENAME_SMLOUVA,
-            DATASOURCE_CKAN: {},
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_SMLOUVA,
-        },
-    },
-    DATASOURCE_COMPANY_SJCR: {
-        DATASOURCE_DOCTYPE_FAKTURA: {
-            DATASOURCE_INDEX: 'muzo-sjcr-zavazek',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_FAKTURA,
-            DATASOURCE_SORTITEM: SORTITEM_FAKTURA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_SJCR + '_' + FILENAME_FAKTURA,
-            DATASOURCE_CKAN: {
-                '2019': 'b8ae66e6-4d7e-4b50-9e29-25b9f5379dc0',
-                '2020': '085947bf-0194-4783-9d8f-362b62740946',
-                'default': '085947bf-0194-4783-9d8f-362b62740946',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_FAKTURA,
-        },
-        DATASOURCE_DOCTYPE_SMLOUVA: {
-            DATASOURCE_INDEX: 'muzo-sjcr-smlouva',
-            DATASOURCE_FIELDNAMES: FIELD_NAMES_SMLOUVA,
-            DATASOURCE_SORTITEM: SORTITEM_SMLOUVA,
-            DATASOURCE_FILENAME: DATASOURCE_COMPANY_SJCR + '_' + FILENAME_SMLOUVA,
-            DATASOURCE_CKAN: {
-                'default': '0ac4ba6b-7e11-44b5-8e88-e6a056990446',
-            },
-            DATASOURCE_CKAN_SCHEME: CKAN_SCHEMA_SMLOUVA,
-        },
-    }
-}
+class Singleton(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class Log(object, metaclass=Singleton):
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+        handler = logging.StreamHandler(sys.stdout)
+        if DEBUG:
+            self.logger.setLevel(logging.DEBUG)
+            handler.setLevel(logging.DEBUG)
+        else:
+            self.logger.setLevel(logging.INFO)
+            handler.setLevel(logging.INFO)
+        formatter = logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
+        handler.setFormatter(formatter)
+        if self.logger.hasHandlers():
+            self.logger.handlers.clear()
+        self.logger.addHandler(handler)
+        self.logger.propagate = False
+        self.logger.info('LOG created')
+
+
+def set_ext_logger(ext_logger):
+    if ext_logger is not None:
+        LOG.logger = ext_logger
+
+
+def isfloat(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
+def create_map_from_list(source_list):
+    out = {}
+    for item in source_list:
+        for k in item.keys():
+            out[k] = item[k]
+    return out
+
+
+def consolidate_date(value: str):
+    if value is None:
+        return None
+    date_string_iso = None
+    value_array = value.split(' ')
+    date_string = value_array[0]
+    d = date_string.split('.')
+    if d:
+        if len(d) == 3:
+            if len(d[2]) < 4:  # je rok mensi nez 2000?
+                date_string_iso = '19' + d[2] + '-' + d[1] + '-' + d[0]
+            else:
+                date_string_iso = d[2] + '-' + d[1] + '-' + d[0]
+    return date_string_iso
+
+
+def init_config():
+    out = {}
+    if os.path.isfile(CONFIG_FILE_PATH):
+        with open(CONFIG_FILE_PATH, "r") as yamlfile:
+            out = yaml.load(yamlfile, Loader=yaml.FullLoader)
+            LOG.logger.info('Configuration loaded')
+        return out
+    out['jasu'] = JASU_CONFIG_DEFAULT
+    out['data_source'] = DATA_SOURCE_DICTIONARY
+    out['filenames'] = FILENAMES_DICTIONARY_DEAFULT
+    out['elasticsearch'] = ES_CONFIG
+    # out['log'] = LOG_CONFIG
+    out['scheduler'] = CRON_MAP
+    with open(CONFIG_FILE_PATH, 'w') as yamlfile:
+        yaml.dump(out, yamlfile)
+        LOG.logger.info('Configuration stored')
+    return out
+
+
+LOG = Log()
+CONFIG = init_config()
+FILENAMES_DICTIONARY = {v: k for k, v in CONFIG['filenames'].items()}
+
+ES_HOST_DEAFULT = '{}://{}:{}/'.format(
+    CONFIG['elasticsearch']['protocol'],
+    CONFIG['elasticsearch']['hostname'],
+    CONFIG['elasticsearch']['port'])
+user = None
+password = None
+if 'user' in CONFIG['elasticsearch']:
+    user = CONFIG['elasticsearch']['user']
+if 'password' in CONFIG['elasticsearch']:
+    password = CONFIG['elasticsearch']['password']
+if (user is not None) and (password is not None):
+    ES_HOST_DEAFULT = '{}://{}:{}@{}:{}/'.format(
+        CONFIG['elasticsearch']['protocol'],
+        user,
+        password,
+        CONFIG['elasticsearch']['hostname'],
+        CONFIG['elasticsearch']['port'])
+ES_HOST = os.getenv('ES_HOST', ES_HOST_DEAFULT)
+# BUFFER_SIZE = CONFIG['exporter']['buffer']
+# JASU_CONFIG = CONFIG['jasu']
+INDEX_DICTIONARY = create_map_from_list(CONFIG['elasticsearch']['index'])

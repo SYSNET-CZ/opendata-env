@@ -52,4 +52,3 @@ importních a exportních skriptů.
 ## Docker
 
 TBD
-

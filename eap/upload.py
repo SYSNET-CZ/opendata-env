@@ -12,8 +12,8 @@ import datetime
 import glob
 import os
 
-from eap.settings import DATASOURCE_COMPANIES, FILENAMES_DICTIONARY, DATA_SOURCE_DICTIONARY, DATASOURCE_CKAN, \
-    DATASOURCE_CKAN_SCHEME, CKAN_ENDPOINT, CKAN_OPENDATA_LICENSE, CKAN_FORMAT_SCHEMA, CKAN_API_KEY
+from defaults import DATASOURCE_COMPANIES, DATASOURCE_CKAN, DATASOURCE_CKAN_SCHEME, CKAN_FORMAT_SCHEMA
+from eap.settings import FILENAMES_DICTIONARY, LOG, CONFIG
 
 
 def upload_all(data_path='.'):
@@ -76,21 +76,28 @@ def parse_year(file_name: str):
 
 
 def upload_file(company, doctype, year, data_path):
-    datasource_ckan = DATA_SOURCE_DICTIONARY[company][doctype][DATASOURCE_CKAN]
-    id = datasource_ckan['default']
-    if str(year) in datasource_ckan.keys():
-        id = datasource_ckan[str(year)]
-    scheme = DATA_SOURCE_DICTIONARY[company][doctype][DATASOURCE_CKAN_SCHEME]
+    datasource_ckan = CONFIG['data_source'][company][doctype][DATASOURCE_CKAN]
+    ident = None
+    for c in datasource_ckan:
+        if ('default' in c) and (ident is None):
+            ident = c['default']
+        elif str(year) in c:
+            ident = c[str(year)]
+    if ident is None:
+        LOG.logger.error('Datasource {}/{} is not catalogized.'.format(company, doctype))
+        return
+    scheme = CONFIG['data_source'][company][doctype][DATASOURCE_CKAN_SCHEME]
     data = {
-        "id": id,
-        "license_link": CKAN_OPENDATA_LICENSE,
+        "id": ident,
+        "license_link": CONFIG['ckan']['license'],
         "describedBy": scheme,
         "describedByType": CKAN_FORMAT_SCHEMA
     }
-    headers = {"X-CKAN-API-Key": CKAN_API_KEY}
+    headers = {"X-CKAN-API-Key": CONFIG['ckan']['api_key']}
     files = [('upload', open(data_path, 'r', encoding='utf-8'))]
-    # requests.post(CKAN_ENDPOINT, data=data, headers=headers, files=files)
-    print(CKAN_ENDPOINT)
+    # requests.post(CONFIG['ckan']['endpoint'], data=data, headers=headers, files=files)
+    print(CONFIG['ckan']['endpoint'])
     print(data)
     print(headers)
     print(files)
+    LOG.logger.info('Datasource {}/{} update in the catalog {}.'.format(company, doctype, ident))
