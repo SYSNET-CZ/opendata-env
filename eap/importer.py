@@ -74,12 +74,10 @@ def main(argv):
     LOG.logger.info(msg=msg)
     out = False
     if all_imports:
-        # TODO
         import_jasu_all()
         out = True
         # print('out = import_jasu_all()')
     else:
-        # TODO
         import_jasu(company=company, data_source=doctype)
         out = True
         # print('out = import_jasu(company=company, data_source=doctype)')
