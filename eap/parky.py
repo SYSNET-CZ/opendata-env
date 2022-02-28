@@ -9,19 +9,19 @@
 # License:      CC BY-SA 4.0
 # -------------------------------------------------------------------------------
 
-'''
+"""
 Správa Krkonošského národního parku - https://opendata.krnap.cz/
 Správa Národního parku České Švýcarsko - https://opendata.nppodyji.cz/
 Správa Národního parku Podyjí - https://opendata.nppodyji.cz/
 Správa Národního parku Šumava - https://opendata.npsumava.cz/
-'''
+"""
 import csv
 import os
 import shutil
 from urllib.error import URLError
 
 import urllib3
-from urllib3.exceptions import NewConnectionError, ResponseError, HTTPError
+from urllib3.exceptions import HTTPError
 
 URL_CSV_KRNAP_SMLOUVY = "https://opendata.krnap.cz/smlouvy.php?export=csv"
 URL_CSV_KRNAP_FAKTURY = "https://opendata.krnap.cz/faktury.php?export=csv"

@@ -1,7 +1,7 @@
 version: '2.2'
 services:
   jasu:
-    image: sysnetcz/opendata-jasu
+    image: sysnetcz/opendata-jasu:1.0.1
     container_name: jasu
     environment:
       - ES_HOST_NAME=elasticsearch
@@ -12,6 +12,8 @@ services:
       - ./config:/opt/opendata/conf
     networks:
       - default
+    ports:
+      - 127.0.0.1:8080:8080
 
 networks:
   default:

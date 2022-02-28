@@ -103,8 +103,11 @@ def init_tasks():
 
 def main():
     init_tasks()
-    SCHEDULER.start()
-    SCHEDULER.print_jobs()
+    try:
+        SCHEDULER.start()
+        SCHEDULER.print_jobs()
+    except (KeyboardInterrupt, SystemExit) as e:
+        LOG.logger.info('Scheduler exit: {}'.format(e))
 
 
 if __name__ == "__main__":

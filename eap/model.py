@@ -2,7 +2,6 @@
 import datetime
 import re
 
-import elasticsearch_dsl
 from elasticsearch_dsl import Document, Keyword, Text, Date, Integer, Float
 from elasticsearch_dsl.exceptions import ElasticsearchDslException
 
@@ -69,7 +68,7 @@ class SmlouvaUnused(Document):
 
     def save(self, **kwargs):
         try:
-            self.date_updated = elasticsearch_dsl.datetime.now()
+            self.date_updated = datetime.datetime.now()
             return super(SmlouvaUnused, self).save(**kwargs)
         except ElasticsearchDslException as err:
             print("CHYBA ES: {0}".format(err))

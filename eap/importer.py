@@ -55,7 +55,6 @@ def main(argv):
     except getopt.GetoptError:
         print(help_string)
         sys.exit(2)
-    test_value = False
     all_imports = False
     for opt, arg in opts:
         if opt == '-h':
@@ -72,7 +71,6 @@ def main(argv):
         company, doctype, all_imports
     )
     LOG.logger.info(msg=msg)
-    out = False
     if all_imports:
         import_jasu_all()
         out = True
@@ -83,6 +81,7 @@ def main(argv):
         # print('out = import_jasu(company=company, data_source=doctype)')
     if not out:
         print(help_string)
+    return out
 
 
 if __name__ == "__main__":

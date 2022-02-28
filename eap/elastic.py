@@ -66,8 +66,8 @@ class ElasticFactory:
 
     def clear_index(self, index):
         idx_client = self.client.indices
-        if idx_client.exists(index):
-            idx_client.delete(index)
+        if idx_client.exists(index=index):
+            idx_client.delete(index=index)
             LOG.logger.info('Index deleted: {}'.format(index))
 
     def store_jasu_objednavky(self, company, jasu_data):
@@ -222,7 +222,7 @@ class EapFaktura(EapDocument):
 
     def save(self, **kwargs):
         try:
-            self.date_updated = elasticsearch_dsl.datetime.now()
+            self.date_updated = datetime.datetime.now()
             return super(EapFaktura, self).save(**kwargs)
         except ElasticsearchDslException as err:
             LOG.logger.error("ES {}: {}".format(EAP_DOC_FAKTURA.upper(), err))
@@ -318,7 +318,7 @@ class EapObjednavka(EapDocument):
 
     def save(self, **kwargs):
         try:
-            self.date_updated = elasticsearch_dsl.datetime.now()
+            self.date_updated = datetime.datetime.now()
             return super(EapObjednavka, self).save(**kwargs)
         except ElasticsearchDslException as err:
             LOG.logger.error("ES {}: {}".format(EAP_DOC_OBJEDNAVKA.upper(), err))
@@ -389,7 +389,7 @@ class EapSmlouva(EapDocument):
 
     def save(self, **kwargs):
         try:
-            self.date_updated = elasticsearch_dsl.datetime.now()
+            self.date_updated = datetime.datetime.now()
             return super(EapSmlouva, self).save(**kwargs)
         except ElasticsearchDslException as err:
             LOG.logger.error("ES {}: {}".format(EAP_DOC_SMLOUVA.upper(), err))
@@ -488,7 +488,7 @@ class EapSmlouva(EapDocument):
 
 
 def index_date_suffix(index):
-    index += '-' + elasticsearch_dsl.date.today().isoformat().replace('-', '.')
+    index += '-' + datetime.date.today().isoformat().replace('-', '.')
     return index
 
 

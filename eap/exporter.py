@@ -18,7 +18,7 @@ import sys
 from datetime import datetime
 
 from dateutil.parser import parse
-from elasticsearch import Elasticsearch, TransportError, ElasticsearchException
+from elasticsearch import TransportError, ElasticsearchException
 from elasticsearch_dsl import Search
 
 from defaults import DATASOURCE_DOCTYPE_FAKTURA, DATASOURCE_DOCTYPE_OBJEDNAVKA, DATASOURCE_DOCTYPE_SMLOUVA, \
@@ -104,6 +104,7 @@ def export_data_source(company, doctype, year=None, path=EXPORT_DATA_DIR, versio
     return out
 
 
+"""
 def get_latest_index(index_pattern, client=None):
     close_client = False
     if client is None:
@@ -111,7 +112,7 @@ def get_latest_index(index_pattern, client=None):
         close_client = True
     LOG.logger.info('GET LATEST INDEX: {}, {}'.format(index_pattern, client.info))
     # indices = sorted(client.indices.get_alias(index_pattern).keys(), reverse=True)
-    indices = client.indices.get_alias(index_pattern).keys()
+    indices = client.indices.get_alias(index=index_pattern).keys()
     if indices is None:
         LOG.logger.error('GET LATEST INDEX: {}, {}'.format(index_pattern, 'indices is None'))
         if close_client:
@@ -131,6 +132,7 @@ def get_latest_index(index_pattern, client=None):
         client.transport.close()
         del client
     return index
+"""
 
 
 class ExporterFactory:
