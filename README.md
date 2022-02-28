@@ -1,26 +1,22 @@
 # Opendata MŽP
 
-Platforma pro zpracování OpenData ze zdrojů MUZO na MŽP
+Platforma pro zpracování OpenData ze zdrojů **MUZO JASU** na MŽP
 
 ## Jak to funguje?
 
 Součástí platformy jsou tyto komponenty:
 
-1. **Elasticsearch** - pro uložení konsolidovaných dat
-2. **Kibana** pro prohlížení konsolidovaných dat
-3. **Imex** - pro import a tranformaci dat ze zdroje typu MUZO a pro export dat do datasetu CSV
+1. **elasticsearch** - pro uložení konsolidovaných dat
+2. **kibana** pro prohlížení konsolidovaných dat
+3. **jasu** - pro import a tranformaci dat ze zdroje typu MUZO a pro export dat do datasetu CSV
 
 ### Import dat do elasticsearch
 
-Pro import, transformaci a uložení dat se používá nástroj **logstash** platformy ELK. Pro každý dataset existuje 
-jedna "roura" logstash a jeden index nebo sada indexů elasticsearch. 
+Pro import, transformaci a uložení dat se používá skript v jazyce **Python 3**. 
+V rámci skriptu se na základě konfigurace načtou data z datového zdroje, provede se jejich transformace
+a uloží se do datového jezera **elasticseach**. 
 
-Roura má tři části: 
-- **vstup** - Identifikuje vstupní datový zdroj, konfiguruje JDBC driver a patřičná SELECT. 
-- **filtr** - provádí tranformaci a základní konsolidaci dat. Například sjednocuje názvy polí. 
-- **výstup** - zajišťuje uložení dat do elasticsearch
- 
-Import se pouší pomocí služby **cron**
+Nástroj **logstash** platformy ELK se už nepoužívá.
 
 ### Export dat do CSV
 
@@ -36,19 +32,32 @@ Takto vytvořený řádek se uloží do souboru CSV.
 
 Soubor CSV se doplní o BOM a uloží na dohodnuté místo. 
 
+## Spouštění
+
+Byly vytvořeny tři typy importních a exportních úloh: 
+- **import_all**: Importuje na základě konfigurace všechny datové zdroje **JASU**.
+- **export_all**: Vytvoří kompletní CSV datasety pro všechny organizace a všechny typy dokumentů.
+- **export_yyyy**: Vytvoří CSV datasety pro všechny organizace a všechny typy dokumentů pro jeden rok. 
+
 ##  Konfigurace
 
-Celá platforma je konfigurovatelná pomocí systémových proměnných 
+Konfigurace služby se provádí jednak pomocí systémových proměnných:
+- **ES_HOST_NAME**: hostname master node clusteru elasticseach (elasticseach)
+- **ES_PROTOCOL**: přenosový protokol (http)
+- **ES_PORT**: TCP port endpointu (9200)
+- **ES_USER**: Uživatel elasticsearch ()
+- **ES_PASSWORD**: Přístupové heslo elasticsearch ()
 
-- **CSV_OUTPUT_DIRECTORY** - adresář pro uložení výsledných CSV souborů
-- **ES_HOST** - hostitel elasticsearch. Implicitně *localhost:9200*
-- **ES_VERSION** - verze ELK (optimalizováno pro 6.8.7, poslední 7.6.1)         
+a jednak pomocí konfiguračního souboru **opendata.yml**. 
 
 ## Spuštění 
 
-Importní a exportní skripty se spouštění pomocí služby **cron**. V souboru **crontab** je uveden způsob volání 
-importních a exportních skriptů.
+Importní a exportní skripty se spouštění v rámci frameforku Flask na pozadí. Plánovač 
+je dostupný pomocí REST API rozhraní na URL http://hostname:8080/scheduler 
+(viz [dokumentace](https://viniciuschiele.github.io/flask-apscheduler/rst/api.html))
 
 ## Docker
 
-TBD
+Obraz Docker se vytvoří 
+
+    docker build -t sysnetcz/opendata-jasu:version .
