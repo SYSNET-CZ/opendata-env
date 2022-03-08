@@ -61,3 +61,9 @@ je dostupný pomocí REST API rozhraní na URL http://hostname:8080/scheduler
 Obraz Docker se vytvoří 
 
     docker build -t sysnetcz/opendata-jasu:version .
+
+## Verze
+
+- 1.0.0 - Iniciální verze
+- 1.0.1 - Scheduler přenesen do Flask
+- 1.0.2 - Opraveny chyby spouštění scheduleru, `python:3.9-bullseye` nahrazen `python:3.9-slim`

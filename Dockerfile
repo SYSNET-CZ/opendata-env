@@ -1,4 +1,5 @@
-FROM python:3.9-bullseye
+# FROM python:3.9-bullseye
+FROM python:3.9-slim
 MAINTAINER SYSNET-CZ "info@sysnet.cz"
 
 ARG HOME_DIR=/opt/opendata
