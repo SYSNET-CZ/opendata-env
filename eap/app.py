@@ -1,4 +1,3 @@
-import datetime
 import os
 from logging.config import dictConfig
 
@@ -7,7 +6,8 @@ from flask import Flask
 from flask_apscheduler import APScheduler
 
 from scheduler import cron_to_dict, import_all, export_all, export_all_for_year
-from settings import set_ext_logger, LOG, create_map_from_list, CONFIG
+from settings import set_ext_logger, LOG, create_map_from_list, CONFIG, get_this_year, get_last_year, \
+    get_before_last_year
 
 SERVICE_ENVIRONMENT = os.getenv("SERVICE_ENVIRONMENT", "development")
 CHRONOS_INTERVAL_HOURS = os.getenv("CHRONOS_INTERVAL_HOURS", '1')
@@ -16,7 +16,8 @@ IMPORT_ALL = 0
 EXPORT_ALL = 0
 EXPORT_YEAR = 0
 EXPORT_THIS_YEAR = 0
-EXPORT_PREVIOUS_YEAR = 0
+EXPORT_LAST_YEAR = 0
+EXPORT_BEFORE_LAST_YEAR = 0
 
 
 class Config:
@@ -104,24 +105,37 @@ for task_name in cm.keys():
             LOG.logger.info('Taskname {} scheduled to {}.'.format(task_name, cron))
         elif task_def[1].isnumeric():
             year = int(task_def[1])
-            this_year = datetime.datetime.now().year
-            previous_year = this_year-1
+            this_year = get_this_year()
+            last_year = get_last_year()
+            before_last_year = get_before_last_year()
             if year == this_year:
                 @scheduler.task(trigger=trigger, id=task_name, name='openadata_' + task_name, misfire_grace_time=900)
                 def export_this_year():
                     global EXPORT_THIS_YEAR
                     EXPORT_THIS_YEAR += 1
-                    out = export_all_for_year(year=str(year))
-                    LOG.logger.info('EXPORT_THIS_YEAR[{}] executed ({})'.format(year, EXPORT_THIS_YEAR))
+                    out = export_all_for_year(year=str(get_this_year()))
+                    msg = 'EXPORT_THIS_YEAR[{}] executed ({})'.format(get_this_year(), EXPORT_THIS_YEAR)
+                    LOG.logger.info(msg=msg)
                     return out
                 LOG.logger.info('Taskname {} scheduled to {}.'.format(task_name, cron))
-            elif year == previous_year:
+            elif year == last_year:
                 @scheduler.task(trigger=trigger, id=task_name, name='openadata_' + task_name, misfire_grace_time=900)
-                def export_prev_year():
-                    global EXPORT_PREVIOUS_YEAR
-                    EXPORT_PREVIOUS_YEAR += 1
-                    out = export_all_for_year(year=str(year))
-                    LOG.logger.info('EXPORT_PREVIOUS_YEAR[{}] executed ({})'.format(year, EXPORT_PREVIOUS_YEAR))
+                def export_last_year():
+                    global EXPORT_LAST_YEAR
+                    EXPORT_LAST_YEAR += 1
+                    out = export_all_for_year(year=str(get_last_year()))
+                    msg = 'EXPORT_LAST_YEAR[{}] executed ({})'.format(get_last_year(), EXPORT_LAST_YEAR)
+                    LOG.logger.info(msg=msg)
+                    return out
+                LOG.logger.info('Taskname {} scheduled to {}.'.format(task_name, cron))
+            elif year == before_last_year:
+                @scheduler.task(trigger=trigger, id=task_name, name='openadata_' + task_name, misfire_grace_time=900)
+                def export_before_last_year():
+                    global EXPORT_BEFORE_LAST_YEAR
+                    EXPORT_BEFORE_LAST_YEAR += 1
+                    out = export_all_for_year(year=str(get_before_last_year()))
+                    msg = 'EXPORT_BEFORE_LAST_YEAR[{}] executed ({})'.format(get_before_last_year(), EXPORT_LAST_YEAR)
+                    LOG.logger.info(msg=msg)
                     return out
                 LOG.logger.info('Taskname {} scheduled to {}.'.format(task_name, cron))
             else:

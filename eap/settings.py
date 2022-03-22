@@ -66,6 +66,23 @@ def isfloat(value):
         return False
 
 
+def get_this_year():
+    out = datetime.datetime.now().year
+    return out
+
+
+def get_last_year():
+    out = datetime.datetime.now().year
+    out -= 1
+    return out
+
+
+def get_before_last_year():
+    out = datetime.datetime.now().year
+    out -= 2
+    return out
+
+
 def create_map_from_list(source_list):
     out = {}
     for item in source_list:
